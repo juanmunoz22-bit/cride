@@ -1,5 +1,4 @@
-    """Django models utilities
-    """
+"""Django models utilities"""
 
 # Django
 from django.db import models
@@ -33,4 +32,3 @@ class CRideModel(models.Model):
 
         get_latest_by = 'created'
         ordering = ['-created', '-modified']
-
