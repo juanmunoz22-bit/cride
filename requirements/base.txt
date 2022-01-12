@@ -6,7 +6,7 @@ psycopg2==2.8.4 --no-binary psycopg2
 typed-ast==1.4.1
 
 # Django
-django==2.0.10
+django==3.2.11
 
 # Environment
 django-environ==0.4.5
