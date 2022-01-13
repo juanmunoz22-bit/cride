@@ -4,7 +4,11 @@
 from django.urls import path
 
 # Views
-from cride.users.views import UserLoginApiView, UserSignUpApiView
+from cride.users.views import (
+    UserLoginApiView, 
+    UserSignUpApiView,
+    AccountVerificationAPIView
+)
 
 urlpatterns = [
     path(
@@ -16,6 +20,11 @@ urlpatterns = [
         route='users/signup', 
         view=UserSignUpApiView.as_view(),
         name='signup'
+    ),
+    path(
+        route='users/verify', 
+        view=AccountVerificationAPIView.as_view(),
+        name='verify'
     ),
     
 ]
