@@ -4,11 +4,12 @@
 from django.db import models
 
 # Utils
-from  cride.utils.models import CRideModel
+from cride.utils.models import CRideModel
+
 
 class Membership(CRideModel):
     """Membership model
-    
+
     A membership is the table that holds the relationship between
     a user and a circle
     """
@@ -46,4 +47,3 @@ class Membership(CRideModel):
             self.user.username,
             self.circle.slug_name
         )
-    
