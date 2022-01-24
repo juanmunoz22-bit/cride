@@ -13,6 +13,19 @@ from datetime import timedelta
 from django.utils import timezone
 
 
+
+class RideModelSerializer(serializers.ModelSerializer):
+    """Ride model serializer"""
+
+    class Meta:
+        model = Ride
+        fields = '__all__'
+        read_only_fields = (
+            'offered_by',
+            'offered_in',
+            'rating'
+        ) 
+
 class CreateRideSerializer(serializers.ModelSerializer):
     """Create ride serializer"""
 
@@ -43,7 +56,7 @@ class CreateRideSerializer(serializers.ModelSerializer):
         
         user = data['offered_by']
         circle = self.context['circle']
-        breakpoint()
+        
         try:
             membership = Membership.objects.get(
                 user=user,
