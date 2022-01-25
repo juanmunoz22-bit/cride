@@ -1,65 +1,103 @@
-"""Rides views"""
+"""Rides views."""
 
-# DRF
-from rest_framework import mixins, viewsets
+# Django REST Framework
+from rest_framework import mixins, viewsets, status
 from rest_framework.generics import get_object_or_404
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 # Permissions
 from rest_framework.permissions import IsAuthenticated
-from cride.circles.permissions import IsActiveCircleMember
+from cride.circles.permissions.memberships import IsActiveCircleMember
+from cride.rides.models.rides import Ride
+from cride.rides.permissions.rides import IsNotRideOwner, IsRideOwner
 
 # Filters
 from rest_framework.filters import SearchFilter, OrderingFilter
 
-# Utils
-from datetime import timedelta
-from django.utils import timezone
-
 # Serializers
 from cride.rides.serializers import (
     CreateRideSerializer,
-    RideModelSerializer
+    RideModelSerializer,
+    JoinRideSerializer
 )
 
 # Models
 from cride.circles.models import Circle
 
+# Utilities
+from datetime import timedelta
+from django.utils import timezone
+
 
 class RideViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
     viewsets.GenericViewSet
 ):
+    """Ride view set."""
 
-    serializer_class = CreateRideSerializer
-    permission_classes = [IsAuthenticated, IsActiveCircleMember]
     filter_backends = (SearchFilter, OrderingFilter)
     ordering = ('departure_date', 'arrival_date', 'available_seats')
     ordering_fields = ('departure_date', 'arrival_date', 'available_seats')
     search_fields = ('departure_location', 'arrival_location')
 
     def dispatch(self, request, *args, **kwargs):
+        """Verify that the circle exists."""
         slug_name = kwargs['slug_name']
         self.circle = get_object_or_404(Circle, slug_name=slug_name)
         return super(RideViewSet, self).dispatch(request, *args, **kwargs)
-    
+
+    def get_permissions(self):
+        """Assign permission based on action."""
+        permissions = [IsAuthenticated, IsActiveCircleMember]
+        if self.action in ['update', 'partial_update']:
+            permissions.append(IsRideOwner)
+        if self.action == 'join':
+            permissions.append(IsNotRideOwner)
+        return [p() for p in permissions]
+
     def get_serializer_context(self):
-        """Add circle to serializer context"""
+        """Add circle to serializer context."""
         context = super(RideViewSet, self).get_serializer_context()
         context['circle'] = self.circle
         return context
 
     def get_serializer_class(self):
-        """Return serlializer based on action"""
+        """Return serializer based on action."""
         if self.action == 'create':
             return CreateRideSerializer
+        if self.action == 'update':
+            return JoinRideSerializer
         return RideModelSerializer
 
     def get_queryset(self):
-        """Return active circle's rides"""
+        """Return active circle's rides."""
         offset = timezone.now() + timedelta(minutes=10)
         return self.circle.ride_set.filter(
             departure_date__gte=offset,
             is_active=True,
             available_seats__gte=1
         )
+
+    @action(detail=True, methods=['post'])
+    def join(self, request, *args, **kwargs):
+        """Add requesting user to ride"""
+        ride: Ride = self.get_object()
+        serializer = JoinRideSerializer(
+            ride,
+            data = {'passenger': request.user.pk},
+            context={
+                'ride': ride,
+                'circle': self.circle
+            },
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        ride.available_seats -= 1
+        ride.save()
+        ride = serializer.save()
+        data = RideModelSerializer(ride).data
+        return Response(data, status=status.HTTP_200_OK)
+
